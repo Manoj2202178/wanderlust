@@ -37,10 +37,14 @@
       </div>
       <div class="navbar-nav ms-auto">
         <a class="nav-link" href="/listings/new">Add New Listing</a>
+
         <% if (!currUser) { %>
           <a class="nav-link active"  href="/signup"><b>Signup</b></a>
           <a class="nav-link" href="/login"><b>Login</b></a>
         <% } else { %>
+          <a class="nav-link" href="/myOrders"><b>MyOrders</b></a>
+          <a class="nav-link" href="/myBookings"><b>MyBookings</b></a>
+          <div class="nav-link username" style="border: black;"><b>username:</b> <i><%= currUser.username %></i></div>
           <a class="nav-link" href="/logout"><b>Logout</b></a>
         <% } %>
       </div>

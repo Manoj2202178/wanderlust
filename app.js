@@ -21,6 +21,9 @@ const flash=require("connect-flash");
 const passport=require("passport");
 const LocalStrategy=require("passport-local");
 const User=require("./models/user.js");
+const Booking=require("./models/booking.js");
+const Listing = require("./models/listing.js");
+
 const multer  = require('multer')
 const upload = multer({ dest: 'uploads/' })
 
@@ -29,6 +32,7 @@ const upload = multer({ dest: 'uploads/' })
 const listingRouter=require("./routes/listing.js");
 const reviewRouter=require("./routes/review.js");
 const userRouter=require("./routes/user.js");
+const {isLoggedIn, isOwner, validateListing}=require("./middleware.js");
 
 
 app.engine('ejs', ejsMate);
@@ -47,9 +51,9 @@ main().then(()=>{
 async function main() {
     await mongoose.connect(dbUrl);
 }
-// app.get("/", (req, res)=>{
-//     res.send("This is Root");
-// });
+app.get("/", (req, res)=>{
+    res.redirect("/listings")
+});
 
 const store = MongoStore.create({
     mongoUrl: dbUrl,
@@ -99,9 +103,6 @@ app.use("/listings", listingRouter);
 app.use("/", userRouter);
 
 
-app.use((req, res, next)=>{
-    next(new ExpressError(404, "Page Not Found"));
-})
 
 app.use((err, req, res, next)=>{
     let {statusCode=500, message="Something went wrong"} =err;
@@ -109,6 +110,46 @@ app.use((err, req, res, next)=>{
     // res.status(statusCode).send(message);
 });
 
+app.post("/listings/:id/order",isLoggedIn,async (req,res,next)=>{
+    let {id}=req.params;
+    let listing=await Listing.findById(id);
+    let newBooking=new Booking({guest:req.user._id,listing:listing._id,host: listing.owner});
+    newBooking.save();
+    req.flash("success","Order Placed");
+    res.redirect(`/listings/${id}`);
+    
+});
+//host
+app.get("/myOrders",async (req,res)=>{
+    let bookings=await Booking.find({host:req.user._id}).populate("listing").populate("guest");
+    res.render("listings/myorders",{bookings});
+});
+//mybookings guest
+app.get("/mybookings", async (req, res) => {
+    const bookings = await Booking.find({ guest: req.user._id })
+      .populate("listing")
+      .populate("host");
+    res.render("listings/mybooking", { bookings });
+});
+//status
+app.post("/bookings/:id/status",async (req,res)=>{
+    let {id}=req.params;
+    let {status}=req.body;
+    let booking=await Booking.findById(id);
+    if (booking.host.toString() !== req.user._id.toString()) {
+        return res.status(403).send("Unauthorized");
+    }
+    booking.status=status;await booking.save();
+    res.redirect(`/mybookings`);
+});
+// app.use((req, res, next)=>{
+//     next(new ExpressError(404, "Page Not Found"));
+// })
+
 app.listen(port, ()=>{
     console.log("Server is listening to port 8080");
 });
+// app.use((req,res,next)=>{
+//     console.log("UNMATCHED ROUTE:", req.method, req.originalUrl);
+//     next();
+// });
